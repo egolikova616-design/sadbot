@@ -1,13 +1,15 @@
-﻿import html
+import html
 import json
 import mimetypes
 import os
 import random
 import re
 import string
+import threading
 import time
 import urllib.parse
 import urllib.request
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.error import HTTPError
 from pathlib import Path
 
@@ -201,6 +203,28 @@ def menu_button(callback_data="menu", chat_id=None):
     return icon_button(tr(chat_id, "В меню", "Menu"), "menu", callback_data=callback_data)
 
 
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+
+    def log_message(self, format, *args):
+        return
+
+
+def start_render_health_server():
+    port = os.environ.get("PORT")
+    if not port:
+        return
+
+    server = HTTPServer(("0.0.0.0", int(port)), HealthCheckHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    print(f"Health check server is listening on port {port}.")
+
+
 def main():
     global CONFIG
 
@@ -211,6 +235,7 @@ def main():
         print("Set BOT_TOKEN in .env or settings.py first.")
         return
 
+    start_render_health_server()
     print("EscrowVault Python bot is running.")
     run_long_polling()
 
@@ -1939,7 +1964,7 @@ def load_env(file_path):
             key, value = line.split("=", 1)
             values.setdefault(key.strip(), value.strip())
     for key, value in os.environ.items():
-        values.setdefault(key, value)
+        values[key] = value
     return values
 
 
